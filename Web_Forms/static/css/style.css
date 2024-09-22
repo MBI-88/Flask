@@ -1,0 +1,23 @@
+#grupo {
+    margin: 20px 10px;
+    font-family: Georgia;
+    font-size: medium;
+    font-style: oblique;
+    padding-top: 20px;
+}
+#nombre {
+    background-color:azure;
+    font-style: italic;
+    font-weight: 800;
+    font-family: 'Courier New', Courier, monospace;
+}
+#divicion {
+    background-origin: content-box;
+    
+}
+#aceptar {
+    background-color:aqua;
+    font-family: 'Gill Sans';
+    font-style: unset;
+    font-stretch: condensed;
+}

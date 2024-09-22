@@ -1,0 +1,749 @@
+TIP
+Password hashing is a complex task that is hard to get right. It is recommended that you
+don’t implement your own solution but instead rely on reputable libraries that have been
+reviewed by the community. If you are interested in learning what’s involved in
+generating secure password hashes, the article Salted Password Hashing - Doing it Right
+is a worthwhile read.
+
+Hashing Passwords with Werkzeug
+
+Werkzeug’s security module conveniently implements secure password
+hashing. This functionality is exposed with just two functions, used in the
+registration and verification phases, respectively:
+-> generate_password_hash(password, method=pbkdf2:sha1,
+salt_length=8): This function takes a plain-text password and returns
+the password hash as a string that can be stored in the user database. The
+default values for method and salt_length are sufficient for most use
+cases.
+-> check_password_hash(hash, password): This function takes a
+password hash retrieved from the database and the password entered by
+the user. A return value of True indicates that the password is correct.
+
+NOTE
+Blueprints can also be configured to have their own independent folder for templates.
+When multiple template folders have been configured, the render_template()
+function searches the templates folder configured for the application first and then
+searches the template folders defined by blueprints.
+
+
+User Authentication with Flask-Login
+
+When users log in to the application, their authenticated state has to be
+recorded so that it is remembered as they navigate through different pages.
+Flask-Login is a small but extremely useful extension that specializes in
+managing this particular aspect of a user authentication system, without
+being tied to a specific authentication mechanism.
+
+Table 8-1. Flask-Login user methods
+
+Method                      Description
+is_authenticated()          Must return True if the user has login credentials or False
+                            otherwise.
+is_active()                 Must return True if the user is allowed to log in or False
+                            otherwise. A False return value can be used for disabled
+                            accounts.
+is_anonymous()              Must always return False for regular users.
+get_id()                    Must return a unique identifier for the user, encoded as a
+                            Unicode string.
+
+
+The session_protection attribute of the LoginManager object can be set
+to None, 'basic', or 'strong' to provide different levels of security
+against user session tampering. With the 'strong' setting, Flask-Login will
+keep track of the client’s IP address and browser agent and will log the user
+out if it detects a change. The login_view attribute sets the endpoint for the
+login page. Recall that because the login route is inside a blueprint, it needs
+to be prefixed with the blueprint name.
+
+Protecting Routes
+To protect a route so that it can only be accessed by authenticated users,
+Flask-Login provides a login_required decorator.An example of its
+usage follows:
+
+@app.route('/secret')
+@login_required
+def secret():
+    return 'Only authenticated users are allowed!'
+
+Adding a Login Form
+
+The email field takes advantage of the Length() and Email() validators
+provided by WTForms. The PasswordField class represents an <input>
+element with type="password". The BooleanField class represents a
+checkbox.
+
+The current_user variable used in the conditional is defined by Flask-
+Login and is automatically available to view functions and templates. This
+variable contains the user currently logged in, or a proxy anonymous user
+object if the user is not logged in. Anonymous user objects respond to the
+is_authenticated() method with False, so this is a convenient way to
+know whether the current user is logged in.
+
+NOTE
+On a production server, the login route must be made available over secure HTTP so
+that the form data transmitted to the server is encrypted. Without secure HTTP, the login
+credentials can be intercepted during transit, defeating any efforts put into securing
+passwords in the server.
+
+Account Confirmation
+
+Generating Confirmation Tokens with itsdangerous
+
+The simplest account confirmation link would be a URL with the format
+http://www.example.com/auth/confirm/<id> included in the confirmation
+email, where id is the numeric id assigned to the user in the database.
+When the user clicks the link, the view function that handles this route
+receives the user id to confirm as an argument and can easily update the
+confirmed status of the user.
+But this is obviously not a secure implementation, as any user who figures
+out the format of the confirmation links will be able to confirm arbitrary
+accounts just by sending random numbers in the URL. The idea is to
+replace the id in the URL with a token that contains the same information
+securely encrypted.
+
+Note that a db.session.commit() call had to be added, even though the
+application configured automatic database commits at the end of the
+request. The problem is that new users get assigned an id when they are
+committed to the database. Because the id is needed for the confirmation
+token, the commit cannot be delayed.
+
+The before_app_request handler will intercept a request when three
+conditions are true:
+1. A user is logged in (current_user.is_authenticated() must
+return True).
+2. The account for the user is not confirmed.
+3. The requested endpoint (accessible as request.endpoint) is outside
+of the authentication blueprint. Access to the authentication routes
+needs to be granted, as those are the routes that will enable the user to
+confirm the account or perform other account management functions.
+
+Account Management
+
+Password updates
+
+Security conscious users may want to change their passwords
+periodically. This is an easy feature to implement, because as long as
+the user is logged in, it is safe to present a form that asks for the old
+password and a new password to replace it. (This feature is
+implemented as commit 8f in the GitHub repository.)
+
+Password resets
+
+To avoid locking users out of the application when they forget their
+passwords, a password reset option can be offered. To implement
+password resets in a secure way, it is necessary to use tokens similar to
+those used to confirm accounts. When a user requests a password reset,
+an email with a reset token is sent to the registered email address. The
+user then clicks the link in the email and, after the token is verified, a
+form is presented where a new password can be entered. (This feature is
+implemented as commit 8g in the GitHub repository.)
+
+Email address changes
+
+Users can be given the option to change the registered email address,
+but before the new address is accepted it must be verified with a
+confirmation email. To use this feature, the user enters the new email
+address in a form. To confirm the email address, a token is emailed to
+that address. When the server receives the token back, it can update the
+user object. While the server waits to receive the token, it can store the
+new email address in a new database field reserved for pending email
+addresses, or it can store the address in the token along with the id.
+(This feature is implemented as commit 8h in the GitHub repository.)
+
+
+Chapter 9. User Roles
+
+There are several ways to implement roles in an application. The
+appropriate method largely depends on how many roles need to be
+supported and how elaborate they are. For example, a simple application
+may need just two roles, one for regular users and one for administrators. In
+this case, having an is_administrator Boolean field in the User model
+may be all that is necessary. A more complex application may need
+additional roles with varying levels of power in between regular users and
+administrators. In some applications it may not even make sense to talk
+about discrete roles; instead, giving users a combination of permissions may
+be the right approach.
+
+
+Administrator-Level Profile Editor
+
+The SelectField is WTForm’s wrapper for the <select> HTML form
+control, which implements a dropdown list, used in this form to select a
+user role. An instance of SelectField must have the items set in its
+choices attribute. They must be given as a list of tuples, with each tuple
+consisting of two values: an identifier for the item and the text to show in
+the control as a string. The choices list is set in the form’s constructor, with
+values obtained from the Role model with a query that sorts all the roles
+alphabetically by name. The identifier for each tuple is set to the id of each
+role, and since these are integers, a coerce=int argument is added to the
+SelectField constructor so that the field values are stored as integers
+instead of the default, which is strings.
+
+This route has largely the same structure as the simpler one for regular
+users. In this view function, the user is given by its id, so Flask-SQLAlchemy’s get_or_404() 
+convenience function can be used, knowing
+that if the id is invalid the request will return a code 404 error.
+The SelectField used for the user role also deserves to be studied. When
+setting the initial value for the field, the role_id is assigned to
+field.role.data because the list of tuples set in the choices attribute
+uses the numeric identifiers to reference each option. When the form is
+submitted, the id is extracted from the field’s data attribute and used in a
+query to load the role object by its id. The coerce=int argument used in
+the SelectField declaration in the form ensures that the data attribute of
+this field is an integer.
+
+User Avatars
+
+The look of the profile pages can be improved by showing avatar pictures
+of users. In this section, you will learn how to add user avatars provided by
+Gravatar, the leading avatar service. Gravatar associates avatar images with
+email addresses. Users create an account at http://gravatar.com and then
+upload their images. To generate the avatar URL for a given email address,
+its MD5 hash is calculated
+
+Table 10-1. Gravatar query string arguments
+
+Argument name                         Description
+s                                     Image size, in pixels.
+r                                     Image rating. Options are "g", "pg", "r", and "x". 
+d                                     The default image generator for users who have no avatars registered with
+                                      the Gravatar service. Options are "404" to return a 404 error, a URL that
+                                      points to a default image, or one of the following image generators: "mm", 
+                                      "identicon", "monsterid", "wavatar", "retro", or "blank". 
+fd                                    Force the use of default avatars.
+
+
+Chapter 11. Blog Posts
+
+This view function passes the form and the complete list of blog posts to the
+template. The list of posts is ordered by their timestamp in descending
+order. The blog post form is handled in the usual manner, with the creation
+of a new Post instance when a valid submission is received. The current
+user’s permission to write articles is checked before allowing the new post.
+Note the way the author attribute of the new post object is set to the
+expression current_user._get_current_object(). The current_user
+variable from Flask-Login, like all context variables, is implemented as a
+thread-local proxy object. This object behaves like a user object but is really
+a thin wrapper that contains the actual user object inside. The database
+needs a real user object, which is obtained by calling _get_current_object().
+
+Blog Posts on Profile Pages
+
+To complete this reorganization, the <ul> tree from index.html is moved to
+the new template _posts.html, and replaced with another include()
+directive. Note that the use of an underscore prefix in the _posts.html
+template name is not a requirement; this is merely a convention to
+distinguish standalone and partial templates.
+
+Creating Fake Blog Post Data
+
+Use faker to generate fake post data
+
+Adding a Pagination Widget
+
+Flask-SQLAlchemy pagination object attributes
+
+Attribute                                    Description
+items                                        The records in the current page
+query                                        The source query that was paginated
+page                                         The current page number
+prev_num                                     The previous page number
+next_num                                     The next page number
+has_next                                     True if there is a next page
+has_prev                                     True if there is a previous page
+pages                                        The total number of pages for the query
+per_page                                     The number of items per page
+total                                        The total number of items returned by the query
+
+Flask-SQLAlchemy pagination object attributes
+
+Method                                                                  Description
+iter_pages(left_edge=2,left_current=2,right_current=5,right_edge=2)     An iterator that returns the sequence of page numbers to
+                                                                        display in a pagination widget. The list will have
+                                                                        left_edge pages on the left side, left_current pages to
+                                                                        the left of the current page, right_current pages to the
+                                                                        right of the current page, and right_edge pages on the
+                                                                        right side. For example, for page 50 of 100 this iterator
+                                                                        configured with default values will return the following
+                                                                        pages: 1, 2, None, 48, 49, 50, 51, 52, 53, 54, 55, None, 99,
+                                                                        100. A None value in the sequence indicates a gap in the
+                                                                        sequence of pages.
+prev()                                                                  A pagination object for the previous page.
+next()                                                                  A pagination object for the next page.
+
+Jinja2 macros always receive keyword arguments without having to include
+**kwargs in the argument list. The pagination macro passes all the keyword
+arguments it receives to the url_for() call that generates the pagination
+links. This approach can be used with routes such as the profile page that
+have a dynamic part.
+
+Rich-Text Posts with Markdown and Flask- PageDown
+
+When the form is submitted only the raw Markdown text is sent with the
+POST request; the HTML preview that was shown on the page is discarded.
+Sending the generated HTML preview with the form can be considered a
+security risk, as it would be fairly easy for an attacker to construct HTML
+sequences that do not match the Markdown source and submit them. To
+avoid any risks, only the Markdown source text is submitted, and once in
+the server it is converted again to HTML using Markdown, a Python
+Markdown-to-HTML converter. The resulting HTML will be sanitized with
+Bleach to ensure that only a short list of allowed HTML tags are used.
+
+The on_changed_body function is registered as a listener of SQLAlchemy’s
+“set” event for body, which means that it will be automatically invoked
+whenever the body field on any instance of the class is set to a new value.
+The function renders the HTML version of the body and stores it in
+body_html, effectively making the conversion of the Markdown text to
+HTML fully automatic.
+
+The | safe suffix when rendering the HTML body is there to tell Jinja2
+not to escape the HTML elements. Jinja2 escapes all template variables by
+default as a security measure. The Markdown-generated HTML was
+generated in the server, so it is safe to render.
+
+
+Chapter 12. Followers
+
+Database Relationships Revisited
+
+As we discussed in Chapter 5, databases establish links between records
+using relationships. The one-to-many relationship is the most common type
+of relationship, where a record is linked with a list of related records. To
+implement this type of relationship, the elements in the “many” side have a
+foreign key that points to the linked element on the “one” side.
+
+The relationship is defined with the same db.relationship() construct
+that is used for one-to-many relationships, but in the case of a many-to-many 
+relationship the additional secondary argument must to be set to the
+association table. The relationship can be defined in either one of the two
+classes, with the backref argument taking care of exposing the relationship
+from the other side as well. The association table is defined as a simple
+table, not as a model, since SQLAlchemy manages this table internally.
+
+Many-to-Many Relationships
+
+The solution is to add a third table to the database, called an association
+table. Now the many-to-many relationship can be decomposed into two
+one-to-many relationships from each of the two original tables to the
+association table.
+
+Self-Referential Relationships
+
+A many-to-many relationship can be used to model users following other
+users, but there is a problem. In the example of students and classes, there
+were two very clearly defined entities linked together by the association
+table. However, to represent users following other users, it is just users—
+there is no second entity.
+A relationship in which both sides belong to the same table is said to be
+self-referential. In this case the entities on the left side of the relationship
+are users, which can be called the “followers.” The entities on the right side
+are also users, but these are the “followed” users. Conceptually, self-referential 
+relationships are no different than regular relationships, but they
+are harder to think about.
+
+Advanced Many-to-Many Relationships
+
+With a self-referential many-to-many relationship configured as indicated in
+the previous example, the database can represent followers, but there is one
+limitation. A common need when working with many-to-many relationships
+is to store additional data that applies to the link between two entities. For
+the followers relationship, it can be useful to store the date a user started
+following another user, as that will enable lists of followers to be presented
+in chronological order. The only place this information can be stored is in
+the association table, but in an implementation similar to that of the students
+and classes shown earlier, the association table is an internal table that is
+fully managed by SQLAlchemy.
+
+The lazy argument for the back references is specified as joined. This lazy
+mode causes the related object to be loaded immediately from the join
+query. For example, if a user is following 100 other users, calling
+user.followed.all() will return a list of 100 Follow instances, where
+each one has the follower and followed back reference properties set to
+the respective users. The lazy='joined' mode enables this all to happen
+from a single database query. If lazy is set to the default value of select,
+then the follower and followed users are loaded lazily when they are first
+accessed and each attribute will require an individual query, which means
+that obtaining the complete list of followed users would require 100
+additional database queries.
+The lazy argument on the User side of both relationships has different
+needs. These are on the “one” side and return the “many” side; here a mode
+of dynamic is used, so that the relationship attributes return query objects
+instead of returning the items directly, so that additional filters can be added
+to the query before it is executed.
+The cascade argument configures how actions performed on a parent
+object propagate to related objects. An example of a cascade option is the
+rule that says that when an object is added to the database session, any
+objects associated with it through relationships should automatically be
+added to the session as well. The default cascade options are appropriate for
+most situations, but there is one case in which the default cascade options
+do not work well for this many-to-many relationship. The default cascade
+behavior when an object is deleted is to set the foreign key in any related
+objects that link to it to a null value. But for an association table, the correct
+behavior is to delete the entries that point to a record that was deleted, as
+this effectively destroys the link. This is what the delete-orphan cascade
+option does.
+
+
+Query Followed Posts Using a Database Join
+
+The obvious way to load all the posts authored by followed users is to first
+get the list of those users and then get the posts from each and sort them
+into a single list. Of course that approach does not scale well; the effort to
+obtain this combined list will grow as the database grows, and operations
+such as pagination cannot be done efficiently. The key to obtaining the blog
+posts with good performance is doing it with a single query.
+
+return db.session.query(Post).select_from(Follow).\ filter_by(follower_id=self.id).\ 
+       join(Post, Follow.followed_id == Post.author_id)
+
+-> db.session.query(Post) specifies that this is going to be a query that
+returns Post objects.
+-> select_from(Follow) says that the query begins with the Follow
+model.
+-> filter_by(follower_id=self.id) performs the filtering of the
+follows table by the follower user. 
+-> join(Post, Follow.followed_id == Post.author_id) joins the
+results of filter_by() with the Post objects.
+
+The query can be simplified by swapping the order of the filter and the join:
+return Post.query.join(Follow, Follow.followed_id == Post.author_id)\ 
+       .filter(Follow.follower_id == self.id)
+
+Note that the followed_posts() method is defined as a property so that it
+does not need the (). That way, all relationships have a consistent syntax.
+
+Show Followed Posts on the Home Page
+
+The choice of showing all or followed posts is stored in a cookie called
+show_followed that when set to a nonempty string indicates that only
+followed posts should be shown. Cookies are stored in the request object as
+a request.cookies dictionary. The string value of the cookie is converted
+to a Boolean, and based on its value a query local variable is set to the
+query that obtains the complete or filtered lists of blog posts. To show all
+the posts, the top-level query Post.query is used, and the recently added
+User.followed_posts property is used when the list should be restricted
+to followers. The query stored in the query local variable is then paginated
+and the results sent to the template as before.
+
+The set_cookie() function takes the cookie name and the value as the first
+two arguments. The max_age optional argument sets the number of seconds
+until the cookie expires. Not including this argument makes the cookie
+expire when the browser window is closed. In this case, an age of 30 days is
+set so that the setting is remembered even if the user does not return to the
+application for several days.
+
+Making all users self-followers makes the application more usable, but this
+change introduces a few complications. The follower and followed user
+counts shown in the user profile page are now increased by one due to the
+self-follower links. The numbers need to be decreased by one to be
+accurate, which is easy to do directly in the template by rendering {{
+user.followers.count() - 1 }} and {{ user.followed.count() - 1 }}.
+
+
+Chapter 13. User Comments
+
+This view function instantiates the comment form and sends it to the
+post.html template for rendering. The logic that inserts a new comment
+when the form is submitted is similar to the handling of blog posts. As in
+the Post case, the author of the comment cannot be set directly to
+current_user because this is a context variable proxy object. The
+expression current_user._get_current_object() returns the actual
+User object.
+
+The comments are sorted by their timestamp in chronological order, so new
+comments are always added at the bottom of the list. When a new comment
+is entered, the redirect that ends the request goes back to the same URL, but
+the url_for() function sets the page to -1, a special page number that is
+used to request the last page of comments so that the comment just entered
+is seen on the page. When the page number is obtained from the query
+string and found to be -1, a calculation with the number of comments and
+the page size is done to obtain the actual page number to use.
+
+The list of comments associated with the post are obtained through the
+post.comments one-to-many relationship, sorted by comment timestamp,
+and paginated with the same techniques used for blog posts. The comments
+and the pagination object are sent to the template for rendering. The
+FLASKY_COMMENTS_PER_PAGE configuration variable is added to config.py
+to control the size of each page of comments.
+
+Note how the text of the link includes the number of comments, which is
+easily obtained from the one-to-many relationship between the posts and
+comments tables using SQLAlchemy’s count() filter.
+Also of interest is the structure of the link to the comments page, which is
+built as the permanent link for the post with a #comments suffix added. This
+last part is called a URL fragment and is used to indicate an initial scroll
+position for the page. The web browser looks for an element with the id
+given and scrolls the page so that the element appears at the top of the page.
+This initial position is set to the comments heading in the post.html
+template, which is written as <h4 id="comments">Comments<h4>.
+
+
+Chapter 14. API 
+
+There are several protocols by which RIAs can communicate with a web
+service. Remote Procedure Call (RPC) protocols such as XML-RPC or its
+derivative Simplified Object Access Protocol (SOAP) were popular choices
+a few years ago. More recently, the Representational State Transfer (REST)
+architecture has emerged as the favorite for web applications due to it being
+built on the familiar model of the World Wide Web.
+
+TIP
+Be aware that Flask applies special treatment to routes that end with a slash. If a client
+requests a URL without a trailing slash and the only matching route has a slash at the
+end, then Flask will automatically respond with a redirect to the trailing slash URL. No
+redirects are issued for the reverse case.
+
+Table 14-1. HTTP request methods in RESTful APIs
+
+Request method          Target          Description                                     HTTP status code                  
+GET                     Individual
+                        resource 
+                        URL             Obtain the resource.                            200
+GET                     Resource
+                        collection
+                        URL             Obtain the collection of resources 
+                                        (or one page from it if
+                                        the server implements pagination).              200
+POST                    Resource
+                        collection
+                        URL             Create a new resource and add it to the 
+                                        collection. The server chooses the URL 
+                                        of the new resource and returns it in a 
+                                        Location header in the response.                201
+PUT                    Individual
+                       resource
+                       URL              Modify an existing resource. 
+                                        Alternatively this method
+                                        can also be used to create a new resource 
+                                        when the client can choose the resource URL.    200
+DELETE                 Individual
+                       resource
+                       URL              Delete a resource.                              200
+DELETE                 Resource
+                       collection
+                       URL              Delete all resources in the collection.         200
+
+NOTE
+The REST architecture does not require that all methods be implemented for a resource.
+If the client invokes a method that is not supported for a given resource, then a response
+with the 405 status code for “Method Not Allowed” should be returned. Flask handles
+this error automatically.
+
+The two formats commonly used with RESTful web services are JavaScript
+Object Notation (JSON) and Extensible Markup Language (XML). For
+web-based RIAs, JSON is attractive because of its close ties to JavaScript,
+the client-side scripting language used by web browsers.
+
+Table 14-2. HTTP response status codes typically returned by APIs
+
+HTTP status code                       Name                       Description
+200                                    OK                         The request was completed successfully.
+201                                    Created                    The request was completed successfully and a new
+                                                                  resource was created as a result.
+400                                    Bad request                The request is invalid or inconsistent.
+401                                    Unauthorized               The request does not include authentication information.
+403                                    Forbidden                  The authentication credentials sent with the request are
+                                                                  insufficient for the request.
+404                                    Not found                  The resource referenced in the URL was not found.
+405                                    Method not
+                                       allowed                    The request method requested is not supported for the
+                                                                  given resource.
+500                                    Internal
+                                       server error
+                                                                  An unexpected error has occurred while processing the
+                                                                  request.
+
+
+NOTE
+The stateless requirement of REST may seem overly strict, but it is not arbitrary.
+Stateless servers can scale very easily. When servers store information about clients, it is
+necessary to have a shared cache accessible to all servers to ensure that the same server
+always gets requests from a given client. Both are complex problems to solve.
+
+CAUTION
+Because user credentials are being exchanged with every request, it is extremely
+important that the API routes are exposed over secure HTTP so that all requests and
+responses are encrypted.
+
+NOTE
+The handler for 404 errors is at the application level, but it will provide a JSON
+response if the client requests that format. If a response customized to the web service is
+desired, the 404 error handler can be overridden in the blueprint.
+
+Table 14-3. Flasky API resources
+
+Resource URL                      Methods                               Description
+/users/<int:id>                   GET                                   A user
+/users/<int:id>/posts/            GET                                   The blog posts written by a user
+/users/<int:id>/timeline/         GET                                   The blog posts followed by a user
+/posts/                           GET, POST                             All the blog posts
+/posts/<int:id>                   GET, PUT                              A blog post
+/posts/<int:id/>comments/         GET, POST                             The comments on a blog post
+/comments/                        GET                                   All the comments
+/comments/<int:id>                GET                                   A comment
+
+
+Testing Web Services with HTTPie
+
+(venv) $ pip install httpie
+
+Example:
+(venv) $ http --json --auth <email>:<password> GET \ > http://127.0.0.1:5000/api/v1.0/posts
+
+anonymous
+(venv) $ http --json --auth : GET http://127.0.0.1:5000/api/v1.0/posts/
+
+(venv) $ http --auth <email>:<password> --json POST \ 
+> http://127.0.0.1:5000/api/v1.0/posts/ \ 
+> "body=I'm adding a post from the *command line*."
+
+Authentication token
+(venv) $ http --auth <email>:<password> --json POST \
+ > http://127.0.0.1:5000/api/v1.0/posts/ \
+ > "body=I'm adding a post from the *command line*."
+
+
+Chapter 15. Testing
+
+pip install coverage
+
+But integrating code coverage with the manage.py script presents a small
+problem. By the time the --coverage option is received in the test()
+function, it is already too late to turn on coverage metrics; by that time all
+the code in the global scope has already executed. To get accurate metrics,
+the script restarts itself after setting the FLASK_COVERAGE environment
+variable. In the second run, the top of the script finds that the environment
+variable is set and turns on coverage from the start.
+
+The coverage.coverage() function starts the coverage engine. The
+branch=True option enables branch coverage analysis, which, in addition
+to tracking which lines of code execute, checks whether for every
+conditional both the True and False cases have executed. The include
+option is used to limit coverage analysis to the files that are inside the
+application package, which is the only code that needs to be measured.
+Without the include option, all the extensions installed in the virtual
+environment and the code for the tests itself would be included in the
+coverage reports—and that would add a lot of noise to the report.
+
+After all the tests have executed, the text() function writes a report to the
+console and also writes a nicer HTML report to disk. The HTML version is
+very good for displaying coverage visually because it shows the source
+code lines color-coded according to their use.
+
+The Flask Test Client
+
+The test begins with a form submission to the registration route. The data
+argument to post() is a dictionary with the form fields, which must exactly
+match the field names defined in the form. Since CSRF protection is now
+disabled in the testing configuration, there is no need to send the CSRF
+token with the form.
+
+The /auth/register route can respond in two ways. If the registration data is
+valid, a redirect sends the user to the login page. In the case of an invalid
+registration, the response renders the page with the registration form again,
+including any appropriate error messages. To validate that the registration
+was accepted, the test checks that the status code of the response is 302,
+which is the code for a redirect.
+
+The second section of the test issues a login to the application using the
+email and password just registered. This is done with a POST request to the
+/auth/login route. This time a follow_redirects=True argument is
+included in the post() call to make the test client work like a browser and
+automatically issue a GET request for the redirected URL. With this option,
+status code 302 will not be returned; instead, the response from the
+redirected URL is returned.
+
+A successful response to the login submission would now have a page that
+greets the user by the username and then indicates that the account needs to
+be confirmed to gain access. Two assert statements verify that this is the
+page, and here it is interesting to note that a search for the string 'Hello, john!' 
+would not work because this string is assembled from static and
+dynamic portions, with extra whitespace in between the parts. To avoid an
+error in this test due to the whitespace, a more flexible regular expression is
+used.
+
+End-to-End Testing with Selenium
+
+(venv) $ pip install selenium
+
+Testing with Selenium requires the application to be running inside a web
+server that is listening for real HTTP requests. The method that will be
+shown in this section starts the application with the development server in a
+background thread while the tests run on the main thread. Under the control
+of the tests, Selenium launches a web browser and makes it connect to the
+application to perform the required operations.
+A problem with this approach is that after all the tests have completed, the
+Flask server needs to be stopped, ideally in a graceful way, so that
+background tasks such as the code coverage engine can cleanly complete
+their work. The Werkzeug web server has a shutdown option, but because
+the server is running isolated in its own thread, the only way to ask the
+server to shut down is by sending a regular HTTP request.
+
+The setUpClass() and tearDownClass() class methods are invoked
+before and after the tests in this class execute. The setup involves starting
+an instance of Firefox through Selenium’s webdriver API and creating an
+application and a database with some initial data for tests to use. The
+application is started in a thread using the standard app.run() method. At
+the end the application receives a request to /shutdown, which causes the
+background thread to end. The browser is then closed and the test database
+removed.
+
+
+Chapter 16. Performance 
+
+Table 16-1. Query statistics recorded by Flask-SQLAlchemy
+
+Name                            Description
+statement                       The SQL statement
+parameters                      The parameters used with the SQL statement
+start_time                      The time the query was issued
+end_time                        The time the query returned
+duration                        The duration of the query in seconds
+context                         A string that indicates the source code location where the query was issued
+
+NOTE
+Profiling is typically done in a development environment. A source code profiler makes
+the application run slower because it has to observe and take notes of all that is
+happening. Profiling on a production system is not recommended, unless a lightweight
+profiler specifically designed to run on a production environment is used.
+
+When the application is started with python manage.py profile, the
+console will show the profiler statistics for each request, which will include
+the slowest 25 functions. The --length option can be used to change the
+number of functions shown in the report. If the --profile-dir option is
+given, the profile data for each request will be saved to a file in the given
+directory. The profiler data files can be used to generate more detailed
+reports that include a call graph. For more information on the Python
+profiler, consult the official documentation.
+
+
+Chapter 17. Deployment 
+
+Deployment Workflow
+Regardless of the hosting method used, there are a series of tasks that must
+be carried out when the application is installed on a production server. The
+best example is the creation or update of the database tables.
+Having to run these tasks manually each time the application is installed or
+upgraded is error prone and time consuming, so instead a command that
+performs all the required tasks can be added to manage.py.
+
+Logging of Errors During Production
+
+When the application is running in debug mode, Werkzeug’s interactive
+debugger appears whenever an error occurs. The stack trace of the error is
+displayed on the web page and it is possible to look at the source code and
+even evaluate expressions in the context of each stack frame using Flask’s
+interactive web-based debugger.
+The debugger is an excellent tool to debug application problems during
+development, but obviously it cannot be used in a production deployment.
+Errors that occur in production are silenced and instead the user receives a
+code 500 error page. But luckily, the stack traces of these errors are not
+completely lost, as Flask writes them to a log file.
+
+During startup, Flask creates an instance of Python’s logging.Logger class
+and attaches it to the application instance as app.logger. In debug mode,
+this logger writes to the console, but in production mode there are no
+handlers configured for it by default, so unless a handler is added logs are
+not stored. The changes in Example 17-2 configure a logging handler that
+sends the errors that occur while running in production mode to the list
+administrator emails configured in the FLASKY_ADMIN setting.

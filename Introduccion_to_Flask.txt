@@ -1,0 +1,7 @@
+Notices:
+
+Flask has two main dependencies. The routing, debugging, and Web Server
+Gateway Interface (WSGI) subsystems come from Werkzeug, while
+template support is provided by Jinja2. Werkzeug and Jinja2 are authored
+by the core developer of Flask.
+

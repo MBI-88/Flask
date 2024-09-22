@@ -1,0 +1,190 @@
+A template is a file that contains the text of a response, with placeholder
+variables for the dynamic parts that will be known only in the context of a
+request. The process that replaces the variables with actual values and
+returns a final response string is called rendering. For the task of rendering
+templates, Flask uses a powerful template engine called Jinja2.
+
+Rendering Templates
+
+By default Flask looks for templates in a templates subfolder located inside
+the application folder. For the next version of hello.py, you need to store the
+templates defined earlier in a new templates folder as index.html and
+user.html.
+
+Keyword arguments like name=name in the previous example are fairly
+common but may seem confusing and hard to understand if you are not
+used to them. The “name” on the left side represents the argument name,
+which is used in the placeholder written in the template. The “name” on the
+right side is a variable in the current scope that provides the value for the
+argument of the same name.
+
+Variables 
+Example:
+<p>A value from a dictionary: {{ mydict['key'] }}.</p>
+<p>A value from a list: {{ mylist[3] }}.</p>
+<p>A value from a list, with a variable index: {{ mylist[myintvar] }}.</p>
+<p>A value from an object's method: {{ myobj.somemethod() }}.</p>
+
+Variables can be modified with filters, which are added after the variable
+name with a pipe character as separator. For example, the following
+template shows the name variable capitalized:
+Hello, {{ name|capitalize }}
+
+Table 3-1. Jinja2 variable filters
+
+Filter name          Description
+safe                 Renders the value without applying escaping
+capitalize           Converts the first character of the value to uppercase and the rest to lowercase
+lower                Converts the value to lowercase characters
+upper                Converts the value to uppercase characters
+title                Capitalizes each word in the value
+trim                 Removes leading and trailing whitespace from the value
+striptags            Removes any HTML tags from the value before rendering
+
+CAUTION
+Never use the safe filter on values that aren’t trusted, such as text entered by users on
+web forms.
+
+Control Structures
+
+Jinja2 also supports macros, which are similar to functions in Python code.
+For example:
+{% macro render_comment(comment) %}
+    <li>{{ comment }}</li>
+{% endmacro %}
+<ul>
+    {% for comment in comments %}
+    {{ render_comment(comment) }}
+{% endfor %}
+</ul>
+
+To make macros more reusable, they can be stored in standalone files that
+are then imported from all the templates that need them:
+{% import 'macros.html' as macros %}
+<ul>
+    {% for comment in comments %}
+    {{ macros.render_comment(comment) }}
+    {% endfor %}
+</ul>
+
+Yet another powerful way to reuse is through template inheritance, which is
+similar to class inheritance in Python code. First, a base template is created
+with the name base.html:
+
+<html>
+<head>
+    {% block head %}
+    <title>{% block title %}{% endblock %} - My Application</title>
+    {% endblock %}
+</head>
+<body>
+    {% block body %}
+    {% endblock %}
+</body>
+</html>
+
+Here the block tags define elements that a derived template can change. In
+this example, there are blocks called head, title, and body; note that
+title is contained by head. The following example is a derived template of
+the base template:
+
+{% extends "base.html" %}
+{% block title %}Index{% endblock %}
+{% block head %}
+{{ super() }}
+    <style>
+    </style>
+{% endblock %}
+
+{% block body %}
+<h1>Hello, World!</h1>
+{% endblock %}
+
+Twitter Bootstrap Integration with Flask-Bootstrap
+
+Bootstrap is an open source framework from Twitter that provides user
+interface components to create clean and attractive web pages that are
+compatible with all modern web browsers.
+
+Nota: El uso se realiza online, busca los archivos Bootstrap en linea.
+Base templates define blocks that can be overriden by derived templates.
+The block and endblock directives define blocks of content that are added
+to the base template.
+
+Table 3-2. Flask-Bootstrap’s base template blocks
+
+Block name                       Description
+doc                              The entire HTML document
+html_attribs                     Attributes inside the <html> tag
+html                             The contents of the <html> tag
+head                             The contents of the <head> tag
+title                            The contents of the <title> tag
+metas                            The list of <meta> tags
+styles                           Cascading stylesheet definitions
+body_attribs                     Attributes inside the <body> tag
+body                             The contents of the <body> tag
+navbar                           User-defined navigation bar
+content                          User-defined page content
+scripts                          JavaScript declarations at the bottom of the document
+
+Many of the blocks in Table 3-2 are used by Flask-Bootstrap itself, so
+overriding them directly would cause problems. For example, the styles
+and scripts blocks are where the Bootstrap files are declared. If the
+application needs to add its own content to a block that already has some
+content, then Jinja2’s super() function must be used. For example, this is
+how the scripts block would need to be written in the derived template to
+add a new JavaScript file to the document:
+{% block scripts %}
+{{ super() }}
+<script type="text/javascript" src="my-script.js"></script>
+{% endblock %}
+
+Custom Error Pages
+
+Flask allows an application to define custom error pages that can be based
+on templates, like regular routes. The two most common error codes are
+404, triggered when the client requests a page or route that is not known,
+and 500, triggered when there is an unhandled exception.
+
+Links
+
+Writing the URLs as links directly in the template is trivial for simple
+routes, but for dynamic routes with variable portions it can get more
+complicated to build the URLs right in the template. Also, URLs written
+explicitly create an unwanted dependency on the routes defined in the code.
+If the routes are reorganized, links in templates may break.
+
+In its simplest usage, this function takes the view function name (or
+endpoint name for routes defined with app.add_url_route()) as its single
+argument and returns its URL. For example, in the current version of
+hello.py the call url_for('index') would return /. Calling
+url_for('index', _external=True) would instead return an absolute
+URL, which in this example is http://localhost:5000/.
+
+NOTE
+Relative URLs are sufficient when generating links that connect the different routes of
+the application. Absolute URLs are necessary only for links that will be used outside of
+the web browser, such as when sending links by email.
+
+Static Files
+
+In its default configuration, Flask looks for static files in a subdirectory
+called static located in the application’s root folder. Files can be organized
+in subdirectories inside this folder if desired. When the server receives the
+URL from the previous example, it generates a response that includes the
+contents of a file in the filesystem located at static/css/styles.css.
+
+Localization of Dates and Times with Flask-Moment
+
+Flask-Moment implements the format(), fromNow(), fromTime(),
+calendar(), valueOf(), and unix() methods from moment.js. Consult the
+documentation to learn about all the formatting options offered.
+
+NOTE
+Flask-Moment assumes that timestamps handled by the server-side application are
+“naive” datetime objects expressed in UTC. See the documentation for the datetime
+package in the standard library for information on naive and aware date and time
+objects.
+
+
+

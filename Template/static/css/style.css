@@ -1,0 +1,17 @@
+#cuerpo {
+    background-color: aquamarine;
+    margin-left:  15px;
+}
+#hgrupo {
+    color: blue;font-family: 'Courier New', Courier, monospace;
+}
+#div1 {
+    margin: 20px 10px;
+    background: fixed;
+    
+}
+footer {
+    font-size: small;
+    font-family: 'Segoe UI';
+    margin:  150px 10px;
+}

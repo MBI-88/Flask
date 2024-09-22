@@ -1,0 +1,74 @@
+The Flask-WTF extension makes working with web forms a much more
+pleasant experience. This extension is a Flask integration wrapper around
+the framework-agnostic WTForms package.
+
+By default, Flask-WTF protects all forms against Cross-Site Request
+Forgery (CSRF) attacks. A CSRF attack occurs when a malicious website
+sends requests to a different website on which the victim is logged in.
+
+The app.config dictionary is a general-purpose place to store
+configuration variables used by the framework, the extensions, or the
+application itself. Configuration values can be added to the app.config
+object using standard dictionary syntax. The configuration object also has
+methods to import configuration values from files or the environment.
+
+The SECRET_KEY configuration variable is used as a general-purpose
+encryption key by Flask and several third-party extensions. As its name
+implies, the strength of the encryption depends on the value of this variable
+being secret. Pick a different secret key in each application that you build
+and make sure that this string is not known by anyone.
+
+NOTE
+For added security, the secret key should be stored in an environment variable instead of
+being embedded in the code.
+Use {{wtf.quick_form(form)}} to quick use of formulary
+
+Form Classes
+Table 4-1. WTForms standard HTML fields
+
+Field type                           Description
+StringField                          Text field
+TextAreaField                        Multiple-line text field
+PasswordField                        Password text field
+HiddenField                          Hidden text field
+DateField                            Text field that accepts a datetime.date value in a given format
+DateTimeField                        Text field that accepts a datetime.datetime value in a given format
+IntegerField                         Text field that accepts an integer value
+DecimalField                         Text field that accepts a decimal.Decimal value
+FloatField                           Text field that accepts a floating-point value
+BooleanField                         Checkbox with True and False values
+RadioField                           List of radio buttons
+SelectField                          Drop-down list of choices
+SelectMultipleField                  Drop-down list of choices with multiple selection
+FileField                            File upload field
+SubmitField                          Form submission button
+FormField                            Embed a form as a field in a container form
+FieldList                            List of fields of a given type
+
+Table 4-2. WTForms validators
+
+Validator                            Description
+Email                                Validates an email address
+EqualTo                              Compares the values of two fields; useful when requesting a password to
+                                     be entered twice for confirmation
+IPAddress                            Validates an IPv4 network address
+Length                               Validates the length of the string entered
+NumberRange                          Validates that the value entered is within a numeric range
+Optional                             Allows empty input on the field, skipping additional validators
+Required                             Validates that the field contains data
+Regexp                               Validates the input against a regular expression
+URL                                  Validates a URL
+AnyOf                                Validates that the input is one of a list of possible values
+NoneOf                               Validates that the input is none of a list of possible values
+
+Redirects and User Sessions
+
+NOTE
+By default, user sessions are stored in client-side cookies that are cryptographically
+signed using the configured SECRET_KEY. Any tampering with the cookie content would
+render the signature invalid, thus invalidating the session.
+
+Message Flashing
+
+Use the methods flash() and on the template use get_flashed_messages(), that return a list of messages
+
