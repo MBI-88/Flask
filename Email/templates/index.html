@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Email</title>
+</head>
+<body style="margin: 10px 15px;">
+    <div style="font-family: 'Times New Roman';">
+        <h2>{% if name %} {{name}} {% else %} Known {% endif %}</h2>
+        <form action="" method="post">
+            {{ form.csrf_token }}
+            <ul>
+                <il>{{form.name.label}}</il>
+                <li>{{form.name()}}</li>
+                <li>{{form.text.label}}</li>
+                <li>{{form.text()}}</li>
+                <li>{{form.send()}}</li>
+            </ul>
+        </form>
+        {% if form.errors %} 
+                <h2>There are some errors</h2>
+                {% for error in form.errors %} 
+                    {% if error == form.name %}
+                        {{form.name.label(style="color:red;")}}
+                    {% else %} 
+                        {{form.text.label(style="color:red;")}}
+                    {% endif %} 
+                {% endfor %}
+            </div>
+        {% endif %}
+
+    </div>
+        
+</body>
+</html>

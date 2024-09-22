@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+    <title>Formulary</title>
+</head>
+<body>
+    <div id="divicion">
+        <hgroup id="grupo">
+            <h2>Welcome {% if name %} {{name}} {% else %} Stranger {% endif %}!</h2>
+            <h3>{{ known }}</h3>
+        </hgroup>
+        <form method="POST" action="" style="margin-left: 50px;"> 
+            {{ form.csrf_token }}
+            {{form.name.label}} <h2>{{form.name(id='nombre')}}</h2> 
+            {{form.password.label}} <h2>{{form.password(id='nombre')}}</h2> 
+            {{form.confirm.label}} <h2>{{form.confirm(id='nombre')}}</h2> 
+            <h2> {{form.submit(id='aceptar')}}</h2> 
+        </form>
+        {% if form.errors %} 
+            <div style="margin-left: 50px;"></div>
+                <h2>There are some errors</h2>
+        
+                {% for error in form.errors %} 
+                    {% if error == form.name %}
+                        {{form.name.label(style="color:red;")}}
+                    {% else %} 
+                        {% if error == form.password %} 
+                            {{form.password.label(style="color:red;")}}
+                        {% else %} 
+                            {{form.confirm.label(style="color:red;")}}
+                        {% endif %} 
+                    {% endif %} 
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div style="margin-left: 50px;">
+            {% for message in get_flashed_messages() %}
+                <button type="button" data-dismiss="alert">&times;</button>
+                {{message}}
+            {% endfor %}
+        </div>
+        
+    </div>
+</body>
+</html>

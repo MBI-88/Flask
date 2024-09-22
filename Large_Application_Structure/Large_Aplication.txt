@@ -1,0 +1,211 @@
+Unlike most other web frameworks, Flask does not impose a specific
+organization for large projects; the way to structure the application is left
+entirely to the developer. In this chapter, a possible way to organize a large
+application in packages and modules is presented. This structure will be
+used in the remaining examples of the book.
+
+Example:
+
+|-flasky
+    |-app/
+        |-templates/
+        |-static/
+        |-main/
+            |-__init__.py
+            |-errors.py
+            |-forms.py
+            |-views.py
+        |-__init__.py
+        |-email.py
+        |-models.py
+    |-migrations/
+    |-tests/
+        |-__init__.py
+        |-test*.py
+    |-venv/
+    |-requirements.txt
+    |-config.py
+    |-manage.py
+
+This structure has four top-level folders:
+-> The Flask application lives inside a package generically named app.
+-> The migrations folder contains the database migration scripts, as before.
+-> Unit tests are written in a tests package.
+-> The venv folder contains the Python virtual environment, as before.
+
+There are also a few new files:
+-> requirements.txt lists the package dependencies so that it is easy to
+-> regenerate an identical virtual environment on a different computer.
+-> config.py stores the configuration settings.
+-> manage.py launches the application and other application tasks.
+
+Configuration Options
+
+The Config base class contains settings that are common to all
+configurations; the different subclasses define settings that are specific to a
+configuration. Additional configurations can be added as needed.
+To make configuration more flexible and safe, some settings can be
+optionally imported from environment variables. For example, the value of
+the SECRET_KEY, due to its sensitive nature, can be set in the environment,
+but a default value is provided in case the environment does not define it.
+
+The SQLALCHEMY_DATABASE_URI variable is assigned different values under
+each of the three configurations. This enables the application to run under
+different configurations, each using a different database.
+
+Configuration classes can define a init_app() class method that takes an
+application instance as an argument. Here configuration-specific
+initialization can performed. For now the base Config class implements an
+empty init_app() method.
+
+At the bottom of the configuration script, the different configurations are
+registered in a config dictionary. One of the configurations (the one for
+development in this case) is also registered as the default.
+
+Application Package
+
+The application package is where all the application code, templates, and
+static files live. It is called simply app, though it can be given an
+application-specific name if desired. The templates and static folders are
+part of the application package, so these two folders are moved inside app.
+The database models and the email support functions are also moved inside
+this package, each in its own module as app/models.py and app/email.py.
+
+Using an Application Factory
+
+This constructor imports most of the Flask extensions currently in use, but
+because there is no application instance to initialize them with, it creates
+them uninitialized by passing no arguments into their constructors. The
+create_app() function is the application factory, which takes as an
+argument the name of a configuration to use for the application. The
+configuration settings stored in one of the classes defined in config.py can
+be imported directly into the application using the from_object() method
+available in Flask’s app.config configuration object. The configuration
+object is selected by name from the config dictionary. Once an application
+is created and configured, the extensions can be initialized. Calling
+init_app() on the extensions that were created earlier completes their
+initialization.
+
+The factory function returns the created application instance, but note that
+applications created with the factory function in its current state are
+incomplete, as they are missing routes and custom error page handlers. This
+is the topic of the next section.
+
+
+Implementing Application Functionality in a Blueprint
+
+Luckily Flask offers a better solution using blueprints. A blueprint is similar
+to an application in that it can also define routes. The difference is that
+routes associated with a blueprint are in a dormant state until the blueprint
+is registered with an application, at which point the routes become part of it.
+Using a blueprint defined in the global scope, the routes of the application
+can be defined in almost the same way as in the single-script application.
+Like applications, blueprints can be defined all in a single file or can be
+created in a more structured way with multiple modules inside a package.
+To allow for the greatest flexibility, a subpackage inside the application
+package will be created to host the blueprint.
+
+Blueprints are created by instantiating an object of class Blueprint. The
+constructor for this class takes two required arguments: the blueprint name
+and the module or package where the blueprint is located. As with
+applications, Python’s __name__ variable is in most cases the correct value
+for the second argument.
+
+The routes of the application are stored in an app/main/views.py module
+inside the package, and the error handlers are in app/main/errors.py.
+Importing these modules causes the routes and error handlers to be
+associated with the blueprint. It is important to note that the modules are
+imported at the bottom of the app/__init__.py script to avoid circular
+dependencies, because views.py and errors.py need to import the main
+blueprint.
+A difference when writing error handlers inside a blueprint is that if the
+errorhandler decorator is used, the handler will only be invoked for errors
+that originate in the blueprint. To install application-wide error handlers, the
+app_errorhandler must be used instead.
+
+There are two main differences when writing a view function inside a
+blueprint. First, as was done for error handlers earlier, the route decorator
+comes from the blueprint. The second difference is in the usage of the
+url_for() function. As you may recall, the first argument to this function
+is the endpoint name of the route, which for application-based routes
+defaults to the name of the view function. For example, in a single-script
+application the URL for an index() view function can be obtained with
+url_for('index').
+The difference with blueprints is that Flask applies a namespace to all the
+endpoints coming from a blueprint so that multiple blueprints can define
+view functions with the same endpoint names without collisions. The
+namespace is the name of the blueprint (the first argument to the Blueprint
+constructor), so the index() view function is registered with endpoint name
+main.index and its URL can be obtained with url_for('main.index').
+The url_for() function also supports a shorter format for endpoints in
+blueprints in which the blueprint name is omitted, such as
+url_for('.index'). With this notation, the blueprint for the current
+request is used. This effectively means that redirects within the same
+blueprint can use the shorter form, while redirects across blueprints must
+use the namespaced endpoint name.
+
+Launch Script
+
+As a convenience, a shebang line is added, so that on Unix-based operating
+systems the script can be executed as ./manage.py instead of the more
+verbose python manage.py.
+
+Requirements File
+
+Applications must include a requirements.txt file that records all the
+package dependencies, with the exact version numbers. This is important in
+case the virtual environment needs to be regenerated in a different machine,
+such as the machine on which the application will be deployed for
+production use. This file can be generated automatically by pip with the
+following command:
+
+(venv) $ pip freeze > requirements.txt
+
+When you need to build a perfect replica of the virtual environment, you
+can create a new virtual environment and run the following command on it:
+
+(venv) $ pip install -r requirements.txt
+
+The version numbers in the example requirements.txt file are likely going to
+be outdated by the time you read this. You can try using more recent
+releases of the packages, if you like. If you experience any problems, you
+can always go back to the versions specified in the requirements file, as
+those are known to be compatible with the application.
+
+Unit Tests
+
+The tests are written using the standard unittest package from the Python
+standard library. The setUp() and tearDown() methods run before and 
+after each test, and any methods that have a name that begins with test_
+are executed as tests.
+
+The setUp() method tries to create an environment for the test that is close
+to that of a running application. It first creates an application configured for
+testing and activates its context. This step ensures that tests have access to
+current_app, like regular requests. Then it creates a brand-new database
+that the test can use when necessary. The database and the application
+context are removed in the tearDown() method.
+
+The first test ensures that the application instance exists. The second test
+ensures that the application is running under the testing configuration. To
+make the tests folder a proper package, a tests/__init__.py file needs to be
+added, but this can be an empty file, as the unittest package can scan all
+the modules and locate the tests.
+
+Database Setup
+
+The restructured application uses a different database than the single-script
+version.
+The database URL is taken from an environment variable as a first choice,
+with a default SQLite database as an alternative. The environment variables
+and SQLite database filenames are different for each of the three
+configurations. For example, in the development configuration the URL is
+obtained from environment variable DEV_DATABASE_URL, and if that is not
+defined then a SQLite database with the name data-dev.sqlite is used.
+Regardless of the source of the database URL, the database tables must be
+created for the new database. When working with Flask-Migrate to keep
+track of migrations, database tables can be created or upgraded to the latest
+revision with a single command:
+(venv) $ python manage.py db upgrade
+
+

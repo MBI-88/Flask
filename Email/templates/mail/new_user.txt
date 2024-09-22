@@ -1,0 +1,7 @@
+<body style="font-family: 'Times New Roman';">
+    <h2>{{user.name}}</h2>
+    <p>
+        {{user.text}}
+    </p>
+
+</body>

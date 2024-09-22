@@ -1,0 +1,351 @@
+SQL Databases
+
+Tables have a special column called the primary key, which holds a unique
+identifier for each row stored in the table. Tables can also have columns
+called foreign keys, which reference the primary key of another row from
+the same or another table. These links between rows are called relationships
+and are the foundation of the relational database model.
+
+NoSQL Databases
+
+Databases that do not follow the relational model described in the previous
+section are collectively referred to as NoSQL databases. One common
+organization for NoSQL databases uses collections instead of tables and
+documents instead of records. NoSQL databases are designed in a way that
+makes joins difficult, so most of them do not support this operation at all.
+For a NoSQL database structured as in Figure 5-1, listing the users with
+their roles requires the application itself to perform the join operation by
+reading the role_id field of each user and then searching the roles table
+for it.
+A database with this structure has the role name explicitly stored with each
+user. Renaming a role can then turn out to be an expensive operation that
+may require updating a large number of documents.
+But it isn’t all bad news with NoSQL databases. Having the data duplicated
+allows for faster querying. Listing users and their roles is straightforward
+because no joins are needed.
+
+SQL or NoSQL?
+
+SQL databases excel at storing structured data in an efficient and compact
+form. These databases go to great lengths to preserve consistency. NoSQL
+databases relax some of the consistency requirements and as a result can
+sometimes get a performance edge.
+For small- to medium-size applications, both SQL and NoSQL
+databases are perfectly capable and have practically equivalent
+performance.
+
+Python Database Frameworks
+
+There are a number of factors to evaluate when choosing a database
+framework:
+-> Ease of use
+When comparing straight database engines versus database abstraction
+layers, the second group clearly wins. Abstraction layers, also called
+object-relational mappers (ORMs) or object-document mappers
+(ODMs), provide transparent conversion of high-level object-oriented
+operations into low-level database instructions.
+-> Performance
+The conversions that ORMs and ODMs have to do to translate from the
+object domain into the database domain have an overhead. In most
+cases, the performance penalty is negligible, but they may not always
+be. In general, the productivity gain obtained with ORMs and ODMs far
+outweighs a minimal performance degradation, so this isn’t a valid
+argument to drop ORMs and ODMs completely. What makes sense is to
+choose a database abstraction layer that provides optional access to the
+underlying database in case specific operations need to be optimized by
+implementing them directly as native database instructions.
+-> Portability
+The database choices available on your development and production
+platforms must be considered. For example, if you plan to host your
+application on a cloud platform, then you should find out what database
+choices this service offers.
+Another portability aspect applies to ORMs and ODMs. Although some
+of these frameworks provide an abstraction layer for a single database
+engine, others abstract even higher and provide a choice of database
+engines—all accessible with the same object-oriented interface. The
+best example of this is the SQLAlchemy ORM, which supports a list of
+relational database engines including the popular MySQL, Postgres, and
+SQLite.
+-> Flask integration
+Choosing a framework that has integration with Flask is not absolutely
+required, but it will save you from having to write the integration code
+yourself. Flask integration could simplify configuration and operation,
+so using a package specifically designed as a Flask extension should be
+preferred.
+
+Database Management with Flask-SQLAlchemy
+
+Table 5-1. Flask-SQLAlchemy database URLs
+Database engine            URL
+MySQL                      mysql://username:password@hostname/database
+Postgres                   postgresql://username:password@hostname/database
+SQLite (Unix)              sqlite:////absolute/path/to/database
+SQLite (Windows)           sqlite:///c:/absolute/path/to/database
+
+The URL of the application database must be configured as the key
+SQLALCHEMY_DATABASE_URI in the Flask configuration object. Another
+useful option is the configuration key SQLALCHEMY_COMMIT_ON_TEARDOWN,
+which can be set to True to enable automatic commits of database changes
+at the end of each request. Consult the Flask-SQLAlchemy documentation
+for information on other configuration options. Example 5-1 shows how to
+initialize and configure a simple SQLite database.
+
+Table 5-2. Most common SQLAlchemy column types
+
+Type name                  Python type                            Description
+Integer                    int                                    Regular integer, typically 32 bits
+SmallInteger               int                                    Short-range integer, typically 16 bits
+BigInteger                 int or long                            Unlimited precision integer
+Float                      float                                  Floating-point number
+Numeric                    decimal.Decimal                        Fixed-point number
+String                     str                                    Variable-length string
+Text                       str                                    Variable-length string, optimized for large or unbound length
+Unicode                    unicode                                Variable-length Unicode string
+UnicodeText                unicode                                Variable-length Unicode string, optimized for large or unbound length
+Boolean                    bool                                   Boolean value
+Date                       datetime.date                          Date value
+Time                       datetime.time                          Time value
+DateTime                   datetime.datetime                      Date and time value
+Interval                   datetime.timedelta                     Time interval
+Enum                       str                                    List of string values
+PickleType                 Any Python object                      Automatic Pickle serialization
+LargeBinary                str                                    Binary blob
+
+The remaining arguments to db.Column specify configuration options for
+each attribute. Table 5-3 lists some of the options available.
+
+Table 5-3. Most common SQLAlchemy column options
+
+Option name                Description
+primary_key                If set to True, the column is the table’s primary key.
+unique                     If set to True, do not allow duplicate values for this column.
+index                      If set to True, create an index for this column, so that queries are more efficient.
+nullable                   If set to True, allow empty values for this column. If set to False, the column will not allow null values.
+default                    Define a default value for the column.
+
+NOTE
+Flask-SQLAlchemy requires all models to define a primary key column, which is
+normally named id.
+
+Relationships
+
+As seen in Figure 5-1, a relationship connects two rows through the user of
+a foreign key. The role_id column added to the User model is defined as a
+foreign key, and that establishes the relationship. The 'roles.id'
+argument to db.ForeignKey() specifies that the column should be
+interpreted as having id values from rows in the roles table.
+The users attribute added to model Role represents the object-oriented
+view of the relationship. Given an instance of class Role, the users
+attribute will return the list of users associated with that role. The first
+argument to db.relationship() indicates what model is on the other side
+of the relationship. This model can be provided as a string if the class is not
+yet defined.
+The backref argument to db.relationship() defines the reverse
+direction of the relationship by adding a role attribute to the User model.
+This attribute can be used instead of role_id to access the Role model as
+an object instead of as a foreign key.
+In most cases db.relationship() can locate the relationship’s foreign key
+on its own, but sometimes it cannot determine what column to use as a
+foreign key. For example, if the User model had two or more columns
+defined as Role foreign keys, then SQLAlchemy would not know which
+one of the two to use. Whenever the foreign key configuration is
+ambiguous, additional arguments to db.relationship() need to be given.
+
+Table 5-4. Common SQLAlchemy relationship options
+
+Option name                    Description
+backref                        Add a back reference in the other model in the relationship.
+primaryjoin                    Specify the join condition between the two models explicitly. This is
+                               necessary only for ambiguous relationships.
+lazy                           Specify how the related items are to be loaded. Possible values are
+                               select (items are loaded on demand the first time they are accessed),
+                               immediate (items are loaded when the source object is loaded), joined
+                               (items are loaded immediately, but as a join), subquery (items are
+                               loaded immediately, but as a subquery), noload (items are never
+                               loaded), and dynamic (instead of loading the items the query that can
+                               load them is given).
+uselist                        If set to False, use a scalar instead of a list.
+order_by                       Specify the ordering used for the items in the relationship.
+secondary                      Specify the name of the association table to use in many-to-many relationships.
+secondaryjoin                  Specify the secondary join condition for many-to-many relationships
+                               when SQLAlchemy cannot determine it on its own.
+
+There are other relationship types besides the one-to-many. The one-to-one
+relationship can be expressed as the one-to-many described earlier, but with
+the uselist option set to False within the db.relationship() definition
+so that the “many” side becomes a “one” side. The many-to-one
+relationship can also be expressed as a one-to-many if the tables are
+reversed, or it can be expressed with the foreign key and the
+db.relationship() definition both on the “many” side. The most
+complex relationship type, the many-to-many, requires an additional table
+called an association table. You will learn about many-to-many
+relationships in Chapter 12.
+
+Database Operations
+
+The very first thing to do is to instruct Flask-SQLAlchemy to create a
+database based on the model classes. The db.create_all() function does
+this:
+use shell interface
+
+Inserting Rows
+
+The constructors for models accept initial values for the model attributes as
+keyword arguments. Note that even the role attribute can be used, even
+though it is not a real database column but a high-level representation of the
+one-to-many relationship. The id attribute of these new objects is not set
+explicitly: the primary keys are managed by Flask-SQLAlchemy. The
+objects exist only on the Python side so far; they have not been written to
+the database yet. Because of that their id value has not yet been assigned
+
+Changes to the database are managed through a database session, which
+Flask-SQLAlchemy provides as db.session. To prepare objects to be
+written to the database, they must be added to the session
+
+Write object to the database use:
+-> db.session.add_all([....])
+
+Database sessions are extremely useful in keeping the database consistent.
+The commit operation writes all the objects that were added to the session
+atomically. If an error occurs while the session is being written, the whole
+session is discarded. If you always commit related changes together in a
+session, you are guaranteed to avoid database inconsistencies due to partial
+updates.
+
+NOTE
+A database session can also be rolled back. If db.session.rollback() is called, any
+objects that were added to the database session are restored to the state they have in the
+database.
+
+Modifying Rows
+
+Example: 
+>>> admin_role.name = 'Administrator'
+>>> db.session.add(admin_role)
+>>> db.session.commit()
+
+Deleting Rows
+
+The database session also has a delete() method. The following example
+deletes the "Moderator" role from the database:
+>>> db.session.delete(mod_role)
+>>> db.session.commit()
+
+Querying Rows
+
+>>> Role.query.all()
+[<Role u'Administrator'>, <Role u'User'>]
+>>> User.query.all()
+[<User u'john'>, <User u'susan'>, <User u'david'>]
+
+>>> User.query.filter_by(role=user_role).all()
+[<User u'susan'>, <User u'david'>]
+
+Table 5-5. Common SQLAlchemy query filters
+
+Option                    Description
+filter()                  Returns a new query that adds an additional filter to the original query
+filter_by()               Returns a new query that adds an additional equality filter to the original query
+limit()                   Returns a new query that limits the number of results of the original query to the given number
+offset()                  Returns a new query that applies an offset into the list of results of the original query
+order_by()                Returns a new query that sorts the results of the original query according to the given criteria
+group_by()                Returns a new query that groups the results of the original query according to the given criteria
+
+Table 5-6. Most common SQLAlchemy query executors
+
+Option                    Description
+all()                     Returns all the results of a query as a list
+first()                   Returns the first result of a query, or None if there are no results
+first_or_404()            Returns the first result of a query, or aborts the request and sends a 404 error as response if there are no results
+get()                     Returns the row that matches the given primary key, or None if no matching row is found
+get_or_404()              Returns the row that matches the given primary key. If the key is not found it aborts the request and sends 
+                          a 404 error as response
+count()                   Returns the result count of the query
+paginate()                Returns a Pagination object that contains the specified range of result
+
+The user_role.users query here has a small problem. The implicit query
+that runs when the user_role.users expression is issued internally calls
+all() to return the list of users. Because the query object is hidden, it is not
+possible to refine it with additional query filters. In this particular example,
+it may have been useful to request that the user list be returned in
+alphabetical order. In Example 5-4, the configuration of the relationship is
+modified with a lazy = 'dynamic' argument to request that the query is
+not automatically executed.
+
+Integration with the Python Shell
+
+Having to import the database instance and the models each time a shell
+session is started is tedious work. To avoid having to constantly repeat these
+imports, the Flask-Script’s shell command can be configured to
+automatically import certain objects.
+
+from flask.ext.script import Shell
+def make_shell_context():
+    return dict(app=app, db=db, User=User, Role=Role)
+
+manager.add_command("shell", Shell(make_context=make_shell_context))
+
+The make_shell_context() function registers the application and
+database instances and the models so that they are automatically imported
+into the shell:
+$ python hello.py shell
+>>> app
+<Flask 'app'>
+>>> db
+<SQLAlchemy engine='sqlite:////home/flask/flasky/data.sqlite'>
+>>> User
+<class 'app.User'>
+
+Database Migrations with Flask-Migrate
+
+The lead developer of SQLAlchemy has written a migration framework
+called Alembic, but instead of using Alembic directly, Flask applications
+can use the Flask-Migrate extension, a lightweight Alembic wrapper that
+integrates with Flask-Script to provide all operations through Flask-Script
+commands.
+
+Use falowing steps:
+-> Create an app.py field 
+-> Put it this: 
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+from flask import Flask
+
+db = SQLAlchemy()
+migrate = Migrate()
+
+def create_app():
+    app = Flask(__name__)
+    db.init_app(app)
+    migrate.init_app(app, db)
+    return app
+
+-> Use flask db init to make migrations directory
+
+TIP
+The files in a database migration repository must always be added to version control
+along with the rest of the application.
+
+Creating a Migration Script
+
+In Alembic, a database migration is represented by a migration script. This
+script has two functions called upgrade() and downgrade(). The
+upgrade() function applies the database changes that are part of the
+migration, and the downgrade() function removes them. By having the
+ability to add and remove the changes, Alembic can reconfigure a database
+to any point in the change history.
+Alembic migrations can be created manually or automatically using the
+revision and migrate commands, respectively. A manual migration
+creates a migration skeleton script with empty upgrade() and
+downgrade() functions that need to be implemented by the developer using
+directives exposed by Alembic’s Operations object. An automatic
+migration, on the other hand, generates the code for the upgrade() and
+downgrade() functions by looking for differences between the model
+definitions and the current state of the database.
+
+Upgrading the Database
+
+For a first migration, this is effectively equivalent to calling
+db.create_all(), but in successive migrations the upgrade command
+applies updates to the tables without affecting their contents.
+
