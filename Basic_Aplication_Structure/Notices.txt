@@ -1,0 +1,133 @@
+Initialization
+
+All Flask applications must create an application instance. The web server
+passes all requests it receives from clients to this object for handling, using
+a protocol called Web Server Gateway Interface (WSGI). The application
+instance is an object of class Flask, usually created as follows:
+from flask import Flask
+app = Flask(__name__)
+
+TIP
+
+The name argument that is passed to the Flask application constructor is a source of
+confusion among new Flask developers. Flask uses this argument to determine the root
+path of the application so that it later can find resource files relative to the location of
+the application.
+
+Routers and View Functions
+
+The application instance needs
+to know what code needs to run for each URL requested, so it keeps a
+mapping of URLs to Python functions. The association between a URL and
+the function that handles it is called a route.
+Example:
+
+@app.route('/')
+def index():
+    return '<h1>Hello World!</h1>'
+
+For example,
+the URL for your Facebook profile page is
+http://www.facebook.com/<your-name>, so your username is part of it.
+Flask supports these types of URLs using a special syntax in the route
+decorator. The following example defines a route that has a dynamic name
+component:
+@app.route('/user/<name>')
+def user(name):
+    return '<h1>Hello, %s!</h1>' % name
+
+The portion enclosed in angle brackets is the dynamic part, so any URLs
+that match the static portions will be mapped to this route. When the view
+function is invoked, Flask sends the dynamic component as an argument. In
+the earlier example view function, this argument is used to generate a
+personalized greeting as a response.
+The dynamic components in routes are strings by default but can also be
+defined with a type. For example, route /user/<int:id> would match only
+URLs that have an integer in the id dynamic segment. Flask supports types
+int, float, and path for routes. The path type also represents a string but
+does not consider slashes as separators and instead considers them part of
+the dynamic component.
+
+Server Startup
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+The Request-Response Cycle
+Application and Request Contexts
+
+Table 2-1. Flask context globals
+Variablevname     Context                      Description    
+current_app       Application context          The application instance for the active application.
+g                 Application context          An object that the application can use for temporary storage
+                                               during the handling of a request. This variable is reset with
+                                               each request.
+request           Request context              The request object, which encapsulates the contents of a
+                                               HTTP request sent by the client.
+session           Request context              The user session, a dictionary that the application can use to
+                                               store values that are “remembered” between requests.
+
+Note: If any of these variables are accessed without an active application or request context, an error is generated.
+
+Request Dispatching
+
+Flask builds this map using the app.route decorators or the equivalent nondecorator version
+app.add_url_rule().
+
+Request Hooks
+
+Request hooks are implemented as decorators. These are the four hooks
+supported by Flask:
+-> before_first_request: Register a function to run before the first request is handled.
+-> before_request: Register a function to run before each request.
+-> after_request: Register a function to run after each request, if no unhandled exceptions occurred.
+-> teardown_request: Register a function to run after each request, even if unhandled exceptions occurred.
+
+Response
+
+A very important part of the HTTP response is the status code, which Flask by default sets to 200, 
+the code that indicates that the request was carried out successfully.
+Example:
+@app.route('/')
+def index():
+    return '<h1>Bad Request</h1>', 400
+
+Instead of returning one, two, or three values as a tuple, Flask view
+functions have the option of returning a Response object. The
+make_response() function takes one, two, or three arguments, the same
+values that can be returned from a view function, and returns a Response
+object.
+Example:
+from flask import make_response
+@app.route('/')
+def index():
+    response = make_response('<h1>This document carries a cookie!</h1>')
+    response.set_cookie('answer', '42')
+    return response
+
+A redirect is typically indicated with a 302 response status code and the
+URL to redirect to given in a Location header.
+Example:
+from flask import redirect
+@app.route('/')
+def index():
+    return redirect('http://www.example.com')
+
+The following example returns status code 404 if the id
+dynamic argument given in the URL does not represent a valid user:
+Example:
+from flask import abort
+@app.route('/user/<id>')
+def get_user(id):
+    user = load_user(id)
+    if not user:
+        abort(404)
+    return '<h1>Hello, %s</h1>' % user.name
+
+Flask Extension
+Command-Line Options with Flask-Script
+
+Flask-Script is an extension for Flask that adds a command-line parser to
+your Flask application. It comes packaged with a set of general-purpose
+options and also supports custom commands.
+(venv) $ pip install flask-script # No funciona
